@@ -42,4 +42,4 @@ _Screenshots coming soon._
 
 ## Deployment Link
 
-_Not yet deployed — coming soon._
+**Live app:** [https://aryan-fargose.github.io/GitSearch/](https://aryan-fargose.github.io/GitSearch/)

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getRepoDetails, getRepoLanguages, getCommitActivity } from '../api/github'
+import { getRepoDetails, getRepoLanguages, getCommitActivity, getContributors } from '../api/github'
 import LanguageChart from '../components/LanguageChart'
 import CommitActivityChart from '../components/CommitActivityChart'
+import ContributorsList from '../components/ContributorsList'
 
 export default function RepoDetails() {
   const { owner, repo } = useParams()
@@ -11,6 +12,7 @@ export default function RepoDetails() {
   const [error, setError] = useState(null)
   const [languages, setLanguages] = useState(null)
   const [commitWeeks, setCommitWeeks] = useState(null)
+  const [contributors, setContributors] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -38,6 +40,10 @@ export default function RepoDetails() {
     fetchCommitActivity(owner, repo, (weeks) => {
       if (!cancelled) setCommitWeeks(weeks)
     })
+
+    getContributors(owner, repo)
+      .then((res) => { if (!cancelled) setContributors(res) })
+      .catch(() => { if (!cancelled) setContributors([]) })
 
     return () => { cancelled = true }
   }, [owner, repo])
@@ -93,14 +99,23 @@ export default function RepoDetails() {
         )}
       </div>
 
-      
-        href={data.html_url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-      <a>
-        View on GitHub
-      </a>
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Contributors</h2>
+        {contributors ? (
+          <ContributorsList contributors={contributors} />
+        ) : (
+          <p className="text-gray-500 text-sm">Loading contributors...</p>
+        )}
+      </div>
+
+      <a
+  href={data.html_url}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+>
+  View on GitHub
+</a>
     </div>
   )
 }
@@ -117,8 +132,6 @@ function Stat({ label, value }) {
 function fetchCommitActivity(owner, repo, onDone, attempt = 0) {
   getCommitActivity(owner, repo)
     .then((res) => {
-      // GitHub returns 202 with empty body while it computes stats for the first time.
-      // Axios treats 202 as success but res may be an empty array — retry a couple times.
       if ((!res || res.length === 0) && attempt < 3) {
         setTimeout(() => fetchCommitActivity(owner, repo, onDone, attempt + 1), 1500)
       } else {

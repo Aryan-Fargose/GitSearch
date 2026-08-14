@@ -20,3 +20,9 @@ export async function getCommitActivity(owner, repo) {
   const res = await axios.get(`${BASE_URL}/repos/${owner}/${repo}/stats/commit_activity`)
   return res.data
 }
+export async function getContributors(owner, repo) {
+  const res = await axios.get(`${BASE_URL}/repos/${owner}/${repo}/contributors`, {
+    params: { per_page: 30 },
+  })
+  return res.data
+}

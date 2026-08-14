@@ -2,6 +2,7 @@
 ## Deployment Link
 
 **Live app:** [https://aryan-fargose.github.io/GitSearch/](https://aryan-fargose.github.io/GitSearch/)
+
 A modern web application for searching and exploring GitHub repositories — built with React, Vite, and the GitHub REST API.
 
 ## Overview

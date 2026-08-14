@@ -8,7 +8,7 @@ import { ThemeProvider } from './context/ThemeContext'
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ThemeProvider>
-      <BrowserRouter>
+      <BrowserRouter basename="/GitSearch">
         <App />
       </BrowserRouter>
     </ThemeProvider>

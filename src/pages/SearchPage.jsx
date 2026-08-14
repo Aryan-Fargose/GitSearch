@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useDebounce } from '../hooks/useDebounce'
 import { searchRepos } from '../api/github'
+import { getErrorMessage } from '../api/errors'
 import SearchBar from '../components/SearchBar'
 import RepoCard from '../components/RepoCard'
 
@@ -26,13 +27,7 @@ export default function SearchPage() {
     searchRepos(debouncedQuery)
       .then((items) => { if (!cancelled) setResults(items) })
       .catch((err) => {
-        if (!cancelled) {
-          if (err.response?.status === 403) {
-            setError('GitHub API rate limit reached. Please wait a bit and try again.')
-          } else {
-            setError('Something went wrong while searching. Please try again.')
-          }
-        }
+        if (!cancelled) setError(getErrorMessage(err))
       })
       .finally(() => { if (!cancelled) setLoading(false) })
 

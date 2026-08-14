@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getRepoDetails, getRepoLanguages, getCommitActivity, getContributors } from '../api/github'
+import { getErrorMessage } from '../api/errors'
 import LanguageChart from '../components/LanguageChart'
 import CommitActivityChart from '../components/CommitActivityChart'
 import ContributorsList from '../components/ContributorsList'
@@ -22,14 +23,7 @@ export default function RepoDetails() {
     getRepoDetails(owner, repo)
       .then((res) => { if (!cancelled) setData(res) })
       .catch((err) => {
-        if (cancelled) return
-        if (err.response?.status === 404) {
-          setError('Repository not found.')
-        } else if (err.response?.status === 403) {
-          setError('GitHub API rate limit reached. Please wait and try again.')
-        } else {
-          setError('Something went wrong loading this repository.')
-        }
+        if (!cancelled) setError(getErrorMessage(err))
       })
       .finally(() => { if (!cancelled) setLoading(false) })
 
@@ -109,13 +103,13 @@ export default function RepoDetails() {
       </div>
 
       <a
-  href={data.html_url}
-  target="_blank"
-  rel="noopener noreferrer"
-  className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
->
-  View on GitHub
-</a>
+        href={data.html_url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+      >
+        View on GitHub
+      </a>
     </div>
   )
 }

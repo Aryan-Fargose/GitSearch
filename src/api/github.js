@@ -16,3 +16,7 @@ export async function getRepoLanguages(owner, repo) {
   const res = await axios.get(`${BASE_URL}/repos/${owner}/${repo}/languages`)
   return res.data
 }
+export async function getCommitActivity(owner, repo) {
+  const res = await axios.get(`${BASE_URL}/repos/${owner}/${repo}/stats/commit_activity`)
+  return res.data
+}

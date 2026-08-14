@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getRepoDetails, getRepoLanguages } from '../api/github'
+import { getRepoDetails, getRepoLanguages, getCommitActivity } from '../api/github'
 import LanguageChart from '../components/LanguageChart'
+import CommitActivityChart from '../components/CommitActivityChart'
 
 export default function RepoDetails() {
   const { owner, repo } = useParams()
@@ -9,6 +10,7 @@ export default function RepoDetails() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [languages, setLanguages] = useState(null)
+  const [commitWeeks, setCommitWeeks] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -32,6 +34,10 @@ export default function RepoDetails() {
     getRepoLanguages(owner, repo)
       .then((res) => { if (!cancelled) setLanguages(res) })
       .catch(() => { if (!cancelled) setLanguages({}) })
+
+    fetchCommitActivity(owner, repo, (weeks) => {
+      if (!cancelled) setCommitWeeks(weeks)
+    })
 
     return () => { cancelled = true }
   }, [owner, repo])
@@ -78,6 +84,15 @@ export default function RepoDetails() {
         )}
       </div>
 
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Commit Activity (last year)</h2>
+        {commitWeeks ? (
+          <CommitActivityChart weeks={commitWeeks} />
+        ) : (
+          <p className="text-gray-500 text-sm">Loading commit activity...</p>
+        )}
+      </div>
+
       
         href={data.html_url}
         target="_blank"
@@ -97,4 +112,18 @@ function Stat({ label, value }) {
       <p className="font-semibold">{value}</p>
     </div>
   )
+}
+
+function fetchCommitActivity(owner, repo, onDone, attempt = 0) {
+  getCommitActivity(owner, repo)
+    .then((res) => {
+      // GitHub returns 202 with empty body while it computes stats for the first time.
+      // Axios treats 202 as success but res may be an empty array — retry a couple times.
+      if ((!res || res.length === 0) && attempt < 3) {
+        setTimeout(() => fetchCommitActivity(owner, repo, onDone, attempt + 1), 1500)
+      } else {
+        onDone(res || [])
+      }
+    })
+    .catch(() => onDone([]))
 }

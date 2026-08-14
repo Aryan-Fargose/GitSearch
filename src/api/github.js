@@ -12,3 +12,7 @@ export async function getRepoDetails(owner, repo) {
   const res = await axios.get(`${BASE_URL}/repos/${owner}/${repo}`)
   return res.data
 }
+export async function getRepoLanguages(owner, repo) {
+  const res = await axios.get(`${BASE_URL}/repos/${owner}/${repo}/languages`)
+  return res.data
+}

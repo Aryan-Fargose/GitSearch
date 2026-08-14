@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getRepoDetails } from '../api/github'
+import { getRepoDetails, getRepoLanguages } from '../api/github'
+import LanguageChart from '../components/LanguageChart'
 
 export default function RepoDetails() {
   const { owner, repo } = useParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [languages, setLanguages] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -26,6 +28,10 @@ export default function RepoDetails() {
         }
       })
       .finally(() => { if (!cancelled) setLoading(false) })
+
+    getRepoLanguages(owner, repo)
+      .then((res) => { if (!cancelled) setLanguages(res) })
+      .catch(() => { if (!cancelled) setLanguages({}) })
 
     return () => { cancelled = true }
   }, [owner, repo])
@@ -63,12 +69,21 @@ export default function RepoDetails() {
         <Stat label="Last Updated" value={new Date(data.updated_at).toLocaleDateString()} />
       </div>
 
-      <a
+      <div className="mb-6">
+        <h2 className="text-lg font-semibold mb-2">Languages</h2>
+        {languages ? (
+          <LanguageChart languages={languages} />
+        ) : (
+          <p className="text-gray-500 text-sm">Loading languages...</p>
+        )}
+      </div>
+
+      
         href={data.html_url}
         target="_blank"
         rel="noopener noreferrer"
         className="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-      >
+      <a>
         View on GitHub
       </a>
     </div>

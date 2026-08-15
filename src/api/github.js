@@ -26,3 +26,21 @@ export async function getContributors(owner, repo) {
   })
   return res.data
 }
+export async function searchUsers(query) {
+  const res = await axios.get(`${BASE_URL}/search/users`, {
+    params: { q: query, per_page: 20 },
+  })
+  return res.data.items
+}
+
+export async function getUserProfile(username) {
+  const res = await axios.get(`${BASE_URL}/users/${username}`)
+  return res.data
+}
+
+export async function getUserRepos(username) {
+  const res = await axios.get(`${BASE_URL}/users/${username}/repos`, {
+    params: { sort: 'updated', per_page: 6 },
+  })
+  return res.data
+}

@@ -43,12 +43,12 @@ export default function RepoDetails() {
   }, [owner, repo])
 
   if (loading) return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black">
+    <div className="min-h-screen">
       <p className="text-center pt-10 text-gray-500 dark:text-purple-400">Loading repository...</p>
     </div>
   )
   if (error) return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black text-center pt-10">
+    <div className="min-h-screen text-center pt-10">
       <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>
       <Link to="/" className="text-blue-600 dark:text-purple-400 underline">Back to search</Link>
     </div>
@@ -56,7 +56,7 @@ export default function RepoDetails() {
   if (!data) return null
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black transition-colors">
+    <div className="min-h-screen transition-colors">
       <div className="max-w-3xl mx-auto py-10 px-4">
         <Link to="/" className="text-blue-600 dark:text-purple-400 underline text-sm">&larr; Back to search</Link>
 
@@ -115,8 +115,7 @@ export default function RepoDetails() {
           href={data.html_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-block px-4 py-2 bg-blue-600 dark:bg-purple-700 text-white rounded-lg
-                     hover:bg-blue-700 dark:hover:bg-purple-600"
+          className="inline-block px-4 py-2 bg-blue-600 dark:bg-purple-700 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-purple-600"
         >
           View on GitHub
         </a>

@@ -24,9 +24,62 @@ const CURSOR_GLOW_LIGHT = [99, 102, 241]
 
 const RIBBON_COUNT = 18
 
+const SPRITE_W = 480
+const SPRITE_H = 120
+const BASE_LEN = 380
+const BASE_W = 50
+
+// Pre-render a blurred ribbon sprite once onto an offscreen canvas.
+// This completely avoids running expensive `ctx.filter = 'blur()'` every frame.
+function createRibbonSprite([r, g, b]) {
+  const canvas = document.createElement('canvas')
+  canvas.width = SPRITE_W
+  canvas.height = SPRITE_H
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return null
+
+  const cx = SPRITE_W / 2
+  const cy = SPRITE_H / 2
+
+  // 1. Outer glow
+  ctx.save()
+  if (ctx.filter !== undefined) {
+    ctx.filter = 'blur(14px)'
+  }
+  const glowGrad = ctx.createLinearGradient(cx - BASE_LEN / 2, 0, cx + BASE_LEN / 2, 0)
+  glowGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`)
+  glowGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.6)`)
+  glowGrad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
+  ctx.fillStyle = glowGrad
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, BASE_LEN / 2, BASE_W / 2, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  // 2. Core glow
+  ctx.save()
+  if (ctx.filter !== undefined) {
+    ctx.filter = 'blur(3px)'
+  }
+  const coreLen = BASE_LEN * 0.84
+  const coreW = BASE_W * 0.36
+  const coreGrad = ctx.createLinearGradient(cx - coreLen / 2, 0, cx + coreLen / 2, 0)
+  coreGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`)
+  coreGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.7)`)
+  coreGrad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
+  ctx.fillStyle = coreGrad
+  ctx.beginPath()
+  ctx.ellipse(cx, cy, coreLen / 2, coreW / 2, 0, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.restore()
+
+  return canvas
+}
+
 export default function CursorField() {
   const canvasRef = useRef(null)
   const ribbonsRef = useRef([])
+  const spritesRef = useRef([])
   const rawPointerRef = useRef({ x: -9999, y: -9999 })
   const smoothPointerRef = useRef({ x: -9999, y: -9999 })
   const prevSmoothPointerRef = useRef({ x: -9999, y: -9999 })
@@ -37,10 +90,18 @@ export default function CursorField() {
 
   useEffect(() => {
     const canvas = canvasRef.current
+    if (!canvas) return
     const ctx = canvas.getContext('2d')
+    if (!ctx) return
+
     let animationId
+    let isVisible = true
     const isDark = theme === 'dark'
     const blendMode = isDark ? 'lighter' : 'multiply'
+    const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE
+
+    // Bake sprites once on theme change (takes ~2ms once instead of 37 blurs every 16ms)
+    spritesRef.current = palette.map((color) => createRibbonSprite(color))
 
     function resize() {
       canvas.width = window.innerWidth
@@ -49,10 +110,11 @@ export default function CursorField() {
     }
 
     function initRibbons() {
-      const palette = isDark ? DARK_PALETTE : LIGHT_PALETTE
+      const isSmallScreen = canvas.width < 640
+      const count = isSmallScreen ? 10 : RIBBON_COUNT
       const ribbons = []
-      for (let i = 0; i < RIBBON_COUNT; i++) {
-        const color = palette[i % palette.length]
+      for (let i = 0; i < count; i++) {
+        const colorIndex = i % palette.length
         const homeX = Math.random() * canvas.width
         const homeY = Math.random() * canvas.height
         ribbons.push({
@@ -63,7 +125,7 @@ export default function CursorField() {
           angle: Math.random() * Math.PI * 2,
           length: 180 + Math.random() * 160,
           width: 30 + Math.random() * 24,
-          color,
+          colorIndex,
           layer: i % 2,
           phase: Math.random() * Math.PI * 2,
           flowSpeedX: 0.0006 + Math.random() * 0.0007,
@@ -82,15 +144,34 @@ export default function CursorField() {
       rawPointerRef.current = { x, y }
       lastInputRef.current = performance.now()
     }
-    function handleMouseMove(e) { setPointer(e.clientX, e.clientY) }
-    function handleTouchMove(e) {
-      if (e.touches.length > 0) setPointer(e.touches[0].clientX, e.touches[0].clientY)
+
+    function handleMouseMove(e) {
+      setPointer(e.clientX, e.clientY)
     }
+    function handleTouch(e) {
+      if (e.touches && e.touches.length > 0) {
+        setPointer(e.touches[0].clientX, e.touches[0].clientY)
+      }
+    }
+
     window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('touchmove', handleTouchMove, { passive: true })
-    window.addEventListener('touchstart', handleTouchMove, { passive: true })
+    window.addEventListener('touchmove', handleTouch, { passive: true })
+    window.addEventListener('touchstart', handleTouch, { passive: true })
+
+    function handleVisibility() {
+      isVisible = !document.hidden
+      if (isVisible) {
+        lastInputRef.current = performance.now()
+        animationId = requestAnimationFrame(animate)
+      } else {
+        cancelAnimationFrame(animationId)
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
 
     function animate() {
+      if (!isVisible) return
+
       timeRef.current += 1
 
       prevSmoothPointerRef.current.x = smoothPointerRef.current.x
@@ -107,10 +188,8 @@ export default function CursorField() {
       const rate = targetActivity > activityRef.current ? 0.1 : 0.015
       activityRef.current += (targetActivity - activityRef.current) * rate
 
-      // in light mode, painting a translucent white trail (via multiply) would do nothing,
-      // so instead we clear + let a very light fade come from a low-alpha overlay in 'source-over'
+      // Clear trail
       ctx.globalCompositeOperation = 'source-over'
-      ctx.filter = 'none'
       if (isDark) {
         ctx.fillStyle = 'rgba(0,0,0,0.22)'
         ctx.fillRect(0, 0, canvas.width, canvas.height)
@@ -123,7 +202,9 @@ export default function CursorField() {
 
       const { x: px, y: py } = smoothPointerRef.current
       const activity = activityRef.current
+      const sprites = spritesRef.current
 
+      // Render ribbons via fast hardware-accelerated drawImage
       for (const rb of ribbonsRef.current) {
         const t = timeRef.current
         const flowX =
@@ -155,49 +236,33 @@ export default function CursorField() {
         rb.angle += (moveAngle - rb.angle) * 0.06
 
         const velocityStretch = Math.min(falloff * (pointerSpeed / 40) * 0.5, 0.6)
-
-        const [r, g, b] = rb.color
         const layerBoost = rb.layer === 1 ? 1.0 : 0.6
-        // multiply needs higher alpha to read clearly against white than additive needs against black
         const alphaScale = isDark ? 1 : 1.6
         const baseAlpha = (0.07 + pull * 0.1) * layerBoost * alphaScale
         const stretchedLength = rb.length * (1 + pull * 0.5 + velocityStretch)
 
-        ctx.save()
-        ctx.translate(rb.x, rb.y)
-        ctx.rotate(rb.angle)
-
-        ctx.filter = 'blur(14px)'
-        const glowGrad = ctx.createLinearGradient(-stretchedLength / 2, 0, stretchedLength / 2, 0)
-        glowGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`)
-        glowGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.min(baseAlpha, 0.6)})`)
-        glowGrad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
-        ctx.fillStyle = glowGrad
-        ctx.beginPath()
-        ctx.ellipse(0, 0, stretchedLength / 2, rb.width / 2, 0, 0, Math.PI * 2)
-        ctx.fill()
-
-        ctx.filter = 'blur(3px)'
-        const coreAlpha = baseAlpha * 1.4
-        const coreGrad = ctx.createLinearGradient(-stretchedLength * 0.42, 0, stretchedLength * 0.42, 0)
-        coreGrad.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0)`)
-        coreGrad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${Math.min(coreAlpha, 0.7)})`)
-        coreGrad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
-        ctx.fillStyle = coreGrad
-        ctx.beginPath()
-        ctx.ellipse(0, 0, stretchedLength * 0.42, rb.width * 0.18, 0, 0, Math.PI * 2)
-        ctx.fill()
-
-        ctx.restore()
+        const sprite = sprites[rb.colorIndex]
+        if (sprite) {
+          ctx.save()
+          ctx.translate(rb.x, rb.y)
+          ctx.rotate(rb.angle)
+          ctx.globalAlpha = Math.min(baseAlpha / 0.6, 1)
+          const drawW = stretchedLength * (SPRITE_W / BASE_LEN)
+          const drawH = rb.width * (SPRITE_H / BASE_W)
+          ctx.drawImage(sprite, -drawW / 2, -drawH / 2, drawW, drawH)
+          ctx.restore()
+        }
       }
 
+      // Render cursor glow using a native multi-stop radial gradient
       if (activity > 0.02) {
         const [r, g, b] = isDark ? CURSOR_GLOW_DARK : CURSOR_GLOW_LIGHT
-        ctx.filter = 'blur(20px)'
         const alpha = (isDark ? 0.28 : 0.4) * activity
         const radius = 150 + activity * 60 + pointerSpeed
         const gradient = ctx.createRadialGradient(px, py, 0, px, py, radius)
         gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`)
+        gradient.addColorStop(0.35, `rgba(${r}, ${g}, ${b}, ${alpha * 0.5})`)
+        gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, ${alpha * 0.15})`)
         gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`)
         ctx.fillStyle = gradient
         ctx.beginPath()
@@ -205,18 +270,18 @@ export default function CursorField() {
         ctx.fill()
       }
 
-      ctx.filter = 'none'
       ctx.globalCompositeOperation = 'source-over'
-
       animationId = requestAnimationFrame(animate)
     }
-    animate()
+
+    animationId = requestAnimationFrame(animate)
 
     return () => {
       window.removeEventListener('resize', resize)
       window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('touchmove', handleTouchMove)
-      window.removeEventListener('touchstart', handleTouchMove)
+      window.removeEventListener('touchmove', handleTouch)
+      window.removeEventListener('touchstart', handleTouch)
+      document.removeEventListener('visibilitychange', handleVisibility)
       cancelAnimationFrame(animationId)
     }
   }, [theme])

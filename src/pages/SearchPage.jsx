@@ -14,7 +14,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const debouncedQuery = useDebounce(query, 400)
+  const debouncedQuery = useDebounce(query, 550)
 
   useEffect(() => {
     if (!debouncedQuery.trim()) {

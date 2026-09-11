@@ -4,5 +4,5 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/GitSearch/',
+  base: process.env.GITHUB_PAGES ? '/GitSearch/' : '/',
 })

@@ -1,7 +1,7 @@
 # GitSearch
 ## Deployment Link
 
-**Live app:** [https://aryan-fargose.github.io/GitSearch/](https://aryan-fargose.github.io/GitSearch/)
+**Live app:** https://git-search-rouge.vercel.app/
 
 A modern web application for searching and exploring GitHub repositories — built with React, Vite, and the GitHub REST API.
 
@@ -38,9 +38,8 @@ npm run dev
 
 The app runs locally at `http://localhost:5173`.
 
-## Project Structure
-## Screenshots
 
-_Screenshots coming soon._
+
+
 
 
